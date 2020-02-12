@@ -1,4 +1,6 @@
 const { clientID, clientSecret, port } = require('./config');
+const Track = require('./objects/track.js');
+const Playlist = require('./classes/playlist.js');
 const express = require('express');
 const request = require('request');
 const rp = require('request-promise');
@@ -80,11 +82,98 @@ async function getPlaylists(id) {
     catch (error) {
       console.log(error);
     }
-  }
+}
+
+const trackLoop = async (response, tracks)=> {
+    for(let trackIndex = 0; trackIndex < response.items.length; trackIndex++) {
+      let artists = new Map();
+      let item = response.items[trackIndex];
+      for (let trackArtistIndex = 0; trackArtistIndex < item.track.artists.length; trackArtistIndex++) {
+        let artist = item.track.artists[trackArtistIndex];
+        artists.set(artist.id, artist.name);
+      }
+      let artistIDs = artists.keys();
+      let artistString = '';
+      for(let artistID of artistIDs) {
+        artistString += artistID;
+        artistString += ','
+      }
+      artistString = artistString.slice(0, -1);
+      let genres;
+      try {
+        genres = await getArtistsGenres(artistString);
+        let track = new Track(item.track.name, artists, {'id': item.track.album.id, 'name':item.track.album.name}, genres);
+        tracks.set(item.track.id, track);
+        console.log(tracks);
+      }
+      catch (error) {
+        console.log(error);
+      }
+    }
+}
+
+async function getPlaylistTracks(id) {
+    let options = {
+      url: `https://api.spotify.com/v1/playlists/${id}/tracks`,
+      headers: {
+        'Authorization': 'Bearer ' + token
+      },
+      json: true,
+      qs: {
+        'limit': '2'
+      }
+    };
+  
+    try {
+      let response = await rp.get(options);
+      let tracks = new Map();
+      trackLoop(response,tracks);
+      while(response.next) {
+        options.url = response.next;
+        response = await rp.get(options);
+        trackLoop(response,tracks);
+  
+      }
+      return tracks;
+    }
+    catch (error) {
+      console.log(error);
+    }
+}
+
+async function getArtistsGenres(artistString) {
+    const options = {
+      url: `https://api.spotify.com/v1/artists`,
+      headers: {
+        'Authorization': 'Bearer ' + token
+      },
+      json: true,
+      qs: {
+        'ids': artistString
+      }
+    };
+  
+    try {
+      const response = await rp.get(options);
+      let genres = new Set();
+      response.artists.forEach(artist => {
+        artist.genres.forEach(genre => {
+          genres.add(genre);
+        });
+      });
+      return genres;
+    }
+    catch (error) {
+      console.log(error);
+    }
+}
 
 routes.route('/:id').get(async(req, res) => {
     try {
         const playlists = await getPlaylists(req.params.id);
+
+        const playlistTracks = await getPlaylistTracks(playlists.keys().next().value);
+        console.log(playlistTracks);
     }
     catch (error) {
         console.log(error);
