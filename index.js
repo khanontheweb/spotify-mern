@@ -1,14 +1,13 @@
 const { clientID, clientSecret, port } = require('./config');
 const Track = require('./objects/track.js');
-const Playlist = require('./classes/playlist.js');
+const Playlist = require('./objects/playlist.js');
 const express = require('express');
 const request = require('request');
 const rp = require('request-promise');
-const cors = require('corse');
+const cors = require('cors');
 const bodyParser = require('body-parser');
 const routes = express.Router();
-const PORT = 4000;
-const port = port || PORT;
+
 
 const app = express();
 app.use(cors());
@@ -16,9 +15,6 @@ app.use(bodyParser.json());
 app.use('/users', routes);
 
 var token;
-
-const clientID = clientID;
-const clientSecret = clientSecret;
 
 var authOptions = {
     url: 'https://accounts.spotify.com/api/token',
@@ -181,4 +177,4 @@ routes.route('/:id').get(async(req, res) => {
 });
 
 
-app.listen(port, () => {console.log(`App is listening on port ${port}`);});
+app.listen(port || 4000, () => {console.log(`App is listening on port ${port|| 4000}`);});
